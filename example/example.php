@@ -127,10 +127,14 @@ $entityManager->beginTransaction();
 try {
     $commandHandler();
     $entityManager->flush();
+
+    $eventUoW->flush();
+    $entityManager->commit();
 } catch (Exception $e) {
+    echo 'ERROR: '.$e->getMessage() . '. Rolling back!';
+
     $eventUoW->clear();
     $entityManager->rollBack();
-}
 
-$eventUoW->flush();
-$entityManager->commit();
+    echo 'Rolled back';
+}
