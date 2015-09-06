@@ -51,9 +51,9 @@ class EventCollector implements EventSubscriber
     }
 
     /**
-     * @param AggregateRoot $entity
+     * @param object $entity
      */
-    protected function collectEventsFromEntity(AggregateRoot $entity)
+    protected function collectEventsFromEntity($entity)
     {
         if (!$entity instanceof AggregateRoot) {
             return;
