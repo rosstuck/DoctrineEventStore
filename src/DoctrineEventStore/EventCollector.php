@@ -4,6 +4,7 @@ namespace Tuck\DoctrineEventStore;
 use Broadway\Domain\AggregateRoot;
 use Doctrine\Common\EventSubscriber;
 use Doctrine\ORM\Event\OnFlushEventArgs;
+use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Events;
 
 class EventCollector implements EventSubscriber
@@ -26,6 +27,8 @@ class EventCollector implements EventSubscriber
      */
     public function onFlush(OnFlushEventArgs $event)
     {
+        $event->getEntityManager()->beginTransaction();
+
         $doctrineUnitOfWork = $event
             ->getEntityManager()
             ->getUnitOfWork();
@@ -39,6 +42,11 @@ class EventCollector implements EventSubscriber
         foreach ($doctrineUnitOfWork->getScheduledEntityDeletions() as $entity) {
             $this->collectEventsFromEntity($entity);
         }
+    }
+
+    public function postFlush(PostFlushEventArgs $event)
+    {
+        $event->getEntityManager()->commit();
     }
 
     /**
@@ -61,7 +69,8 @@ class EventCollector implements EventSubscriber
     public function getSubscribedEvents()
     {
         return [
-            Events::onFlush
+            Events::onFlush,
+            Events::postFlush
         ];
     }
 }

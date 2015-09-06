@@ -17,12 +17,12 @@
     ],
     "autoload": {
         "psr-4": {
-            "Tuck\\DoctrineEventStore\\": "src"
+            "Tuck\\": "src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Tuck\\DoctrineEventStore\\Tests\\": "tests/"
+            "Tuck\\Tests\\": "tests/"
         }
     }
 }

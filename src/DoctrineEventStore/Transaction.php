@@ -2,6 +2,7 @@
 namespace Tuck\DoctrineEventStore;
 
 use Broadway\Domain\DomainEventStreamInterface;
+use Broadway\Domain\DomainMessage;
 
 class Transaction
 {
@@ -35,5 +36,18 @@ class Transaction
     public function getDomainEventStream()
     {
         return $this->domainEventStream;
+    }
+
+    /**
+     * @return object[]
+     */
+    public function getDomainEvents()
+    {
+        return array_map(
+            function (DomainMessage $message) {
+                return $message->getPayload();
+            },
+            iterator_to_array($this->domainEventStream)
+        );
     }
 }

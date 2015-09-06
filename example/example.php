@@ -4,6 +4,8 @@ $entityManager = require_once __DIR__ . '/../bootstrap.php';
 
 use Doctrine\ORM\Mapping as ORM;
 use Rhumsaa\Uuid\Uuid;
+use Tuck\EventDispatcher\BufferedEventDispatcher;
+use Tuck\EventDispatcher\SimpleEventDispatcher;
 
 $connection = $entityManager->getConnection();
 
@@ -14,7 +16,8 @@ $eventStore = new Broadway\EventStore\DBALEventStore(
     'Events'
 );
 
-$eventUoW = new \Tuck\DoctrineEventStore\UnitOfWork($eventStore);
+$eventDispatcher = new BufferedEventDispatcher(new SimpleEventDispatcher());
+$eventUoW = new \Tuck\DoctrineEventStore\UnitOfWork($eventStore, $eventDispatcher);
 
 $entityManager->getEventManager()->addEventSubscriber(
     new Tuck\DoctrineEventStore\EventCollector($eventUoW)
@@ -39,7 +42,9 @@ class Book implements \Broadway\Domain\AggregateRoot
      */
     private $title;
 
-    private function __construct() {}
+    private function __construct()
+    {
+    }
 
     public static function purchase($title)
     {
@@ -55,7 +60,7 @@ class Book implements \Broadway\Domain\AggregateRoot
     public function loan()
     {
         // do stuff
-        $this->raise(new BookPurchased($this->id, $this->title));
+        $this->raise(new BookLoanedOut($this->id, $this->title));
     }
 
     public function getAggregateRootId()
@@ -120,6 +125,21 @@ $commandHandler = function () use ($entityManager) {
     $entityManager->persist($book);
 };
 
+// Hang some listeners in there
+$eventDispatcher->addListener(
+    BookPurchased::class,
+    function (BookPurchased $event) {
+        echo "Bought new book: " . $event->getTitle() . "\n";
+    }
+);
+$eventDispatcher->addListener(
+    BookLoanedOut::class,
+    function (BookLoanedOut $event) {
+        echo "Loaned out book: " . $event->getTitle() . "\n";
+    }
+);
+
+
 // This part would be split into a couple of command bus decorators.
 // The important part is that we widen the transaction to include both
 // the Doctrine UoW flush and our own UoW flush.
@@ -131,10 +151,11 @@ try {
     $eventUoW->flush();
     $entityManager->commit();
 } catch (Exception $e) {
-    echo 'ERROR: '.$e->getMessage() . '. Rolling back!';
+    echo 'ERROR: ' . $e->getMessage() . '. Rolling back!';
 
     $eventUoW->clear();
     $entityManager->rollBack();
 
     echo 'Rolled back';
 }
+$eventDispatcher->dispatchPendingEvents();
