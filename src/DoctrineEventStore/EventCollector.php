@@ -46,6 +46,7 @@ class EventCollector implements EventSubscriber
 
     public function postFlush(PostFlushEventArgs $event)
     {
+        $this->eventUnitOfWork->flush();
         $event->getEntityManager()->commit();
     }
 

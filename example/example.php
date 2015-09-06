@@ -148,7 +148,6 @@ try {
     $commandHandler();
     $entityManager->flush();
 
-    $eventUoW->flush();
     $entityManager->commit();
 } catch (Exception $e) {
     echo 'ERROR: ' . $e->getMessage() . '. Rolling back!';
