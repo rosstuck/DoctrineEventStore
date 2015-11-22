@@ -2,8 +2,9 @@
 namespace Tuck\DoctrineEventStore;
 
 use Broadway\Domain\AggregateRoot;
+use Broadway\Domain\DomainEventStream;
+use Broadway\Domain\DomainMessage;
 use Broadway\EventStore\EventStoreInterface;
-use Tuck\EventDispatcher\EventDispatcher;
 
 /**
  * Holds pending events until we're ready to commit them to the database
@@ -16,11 +17,6 @@ class UnitOfWork
     private $eventStore;
 
     /**
-     * @var EventDispatcher
-     */
-    private $eventDispatcher;
-
-    /**
      * @var Transaction[]
      */
     private $pendingTransactions = [];
@@ -31,13 +27,16 @@ class UnitOfWork
     private $committedTransactions = [];
 
     /**
-     * @param EventStoreInterface $eventStore
-     * @param EventDispatcher $eventDispatcher
+     * @var Transaction[]
      */
-    public function __construct(EventStoreInterface $eventStore, EventDispatcher $eventDispatcher)
+    private $failedTransactions = [];
+
+    /**
+     * @param EventStoreInterface $eventStore
+     */
+    public function __construct(EventStoreInterface $eventStore)
     {
         $this->eventStore = $eventStore;
-        $this->eventDispatcher = $eventDispatcher;
     }
 
     /**
@@ -57,27 +56,53 @@ class UnitOfWork
     public function flush()
     {
         /** @var Transaction $transaction */
-        while ($transaction = array_pop($this->pendingTransactions)) {
+        while ($transaction = array_shift($this->pendingTransactions)) {
             try {
                 $this->eventStore->append(
                     $transaction->getAggregateRootId(),
                     $transaction->getDomainEventStream()
                 );
-
             } catch (\Exception $e) {
-                array_unshift($this->pendingTransactions, $transaction);
+                $this->failedTransactions[] = $transaction;
                 throw $e;
             }
 
-            $this->eventDispatcher->dispatchAll($transaction->getDomainEvents());
             $this->committedTransactions[] = $transaction;
         }
     }
 
-    public function clear()
+    /**
+     * @return DomainEventStream
+     */
+    public function releaseCommittedEvents()
     {
-        $this->pendingTransactions = [];
-        $this->committedTransactions = [];
+        $committedEvents = $this->peekAtCommittedEvents();
+        $this->clear();
+
+        return $committedEvents;
+    }
+
+    /**
+     * @return DomainEventStream
+     */
+    public function peekAtCommittedEvents()
+    {
+        // Collect and merge all Domain Events
+        $messages = [];
+        foreach ($this->committedTransactions as $transaction) {
+            $messages = array_merge($messages, iterator_to_array($transaction->getDomainEventStream()));
+        }
+
+        // Sort DomainMessages based on their timestamps, so they always come
+        // out in the same order they were generated internally.
+        usort(
+            $messages,
+            function (DomainMessage $message1, DomainMessage $message2) {
+                return strcmp($message1->getRecordedOn()->toString(), $message2->getRecordedOn()->toString());
+            }
+        );
+
+        return new DomainEventStream($messages);
     }
 
     /**
@@ -91,8 +116,23 @@ class UnitOfWork
     /**
      * @return Transaction[]
      */
+    public function getFailedTransactions()
+    {
+        return $this->failedTransactions;
+    }
+
+    /**
+     * @return Transaction[]
+     */
     public function getCommittedTransactions()
     {
         return $this->committedTransactions;
+    }
+
+    public function clear()
+    {
+        $this->pendingTransactions = [];
+        $this->committedTransactions = [];
+        $this->failedTransactions = [];
     }
 }

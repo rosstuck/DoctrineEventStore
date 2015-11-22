@@ -1,4 +1,9 @@
 <?php
+
+/**
+ *  THIS IS BROKEN BY LATEST CHANGES, TOTALLY IGNORE UNTIL I FIX IT
+ */
+
 /** @var \Doctrine\ORM\EntityManager $entityManager */
 $entityManager = require_once __DIR__ . '/../bootstrap.php';
 
@@ -69,54 +74,6 @@ class Book implements \Broadway\Domain\AggregateRoot
     }
 }
 
-abstract class BookEvent implements \Broadway\Serializer\SerializableInterface
-{
-    private $bookId;
-    private $title;
-
-    public function __construct($bookId, $title)
-    {
-        $this->bookId = $bookId;
-        $this->title = $title;
-    }
-
-    public function getBookId()
-    {
-        return $this->bookId;
-    }
-
-    public function getTitle()
-    {
-        return $this->title;
-    }
-
-    /**
-     * @return mixed The object instance
-     */
-    public static function deserialize(array $data)
-    {
-        return new static($data['book_id'], $data['title']);
-    }
-
-    /**
-     * @return array
-     */
-    public function serialize()
-    {
-        return [
-            'book_id' => $this->bookId,
-            'title' => $this->title
-        ];
-    }
-}
-
-class BookPurchased extends BookEvent
-{
-}
-
-class BookLoanedOut extends BookEvent
-{
-}
 
 // Simplified domain part
 $commandHandler = function () use ($entityManager) {

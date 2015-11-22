@@ -34,7 +34,7 @@ trait EntityWithEvents
         $this->uncommittedEvents[] = DomainMessage::recordNow(
             $this->getAggregateRootId(),
             $this->playhead,
-            new Metadata(array()),
+            new Metadata([]),
             $event
         );
     }
@@ -46,7 +46,7 @@ trait EntityWithEvents
     {
         $stream = new DomainEventStream($this->uncommittedEvents);
 
-        $this->uncommittedEvents = array();
+        $this->uncommittedEvents = [];
 
         return $stream;
     }

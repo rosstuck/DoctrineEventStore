@@ -22,7 +22,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Tuck\\Tests\\": "tests/"
+            "Tuck\\DoctrineEventStore\\Tests\\": "tests"
         }
     }
 }
